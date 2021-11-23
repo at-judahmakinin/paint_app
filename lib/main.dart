@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:io';
 import 'dart:ui' as ui;
+import './dio_instance.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
@@ -8,6 +9,7 @@ import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:painter/painter.dart';
 //import 'package:path_provider/path_provider.dart';
 //import 'package:gallery_saver/gallery_saver.dart';
+import 'apiwidget.dart';
 import 'image_file.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -38,6 +40,8 @@ class _PainterCanvasState extends State<PainterCanvas> {
   PainterController _controller = _newController();
 
   ImageFile? imageFile;
+  String userToken =
+      "userToken= eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmZDYyNzQ1Zi05Yzk0LTQ5ZDgtYjUzZC1kYjc5YThhNmFlYTciLCJlbWFpbCI6Im1pY2hhZWwuYWNoZWFtcG9uZ0BhbWFsaXRlY2gub3JnIiwicm9sZSI6InVzZXIiLCJpYXQiOjE2Mzc2Nzg5NjgsImV4cCI6MTYzNzY4OTc2OH0.RtwnvesgSoRFyqhnuXexg0CMr20OpZ6LkmiWneK6MGU";
 
   static PainterController _newController() {
     PainterController controller = PainterController();
@@ -69,13 +73,21 @@ class _PainterCanvasState extends State<PainterCanvas> {
             tooltip: 'Undo',
             onPressed: () {
               if (_controller.isEmpty) {
-                showModalBottomSheet(context: context, builder: (BuildContext context) => const Text('Nothing to undo'));
+                showModalBottomSheet(
+                    context: context,
+                    builder: (BuildContext context) =>
+                        const Text('Nothing to undo'));
               } else {
                 _controller.undo();
               }
             }),
-        IconButton(icon: const Icon(Icons.delete), tooltip: 'Clear', onPressed: _controller.clear),
-        IconButton(icon: const Icon(Icons.check), onPressed: () => _show(_controller.finish(), context)),
+        IconButton(
+            icon: const Icon(Icons.delete),
+            tooltip: 'Clear',
+            onPressed: _controller.clear),
+        IconButton(
+            icon: const Icon(Icons.check),
+            onPressed: () => _show(_controller.finish(), context)),
       ];
     }
     return Scaffold(
@@ -86,7 +98,8 @@ class _PainterCanvasState extends State<PainterCanvas> {
             child: DrawBar(_controller),
             preferredSize: Size(MediaQuery.of(context).size.width, 30.0),
           )),
-      body: Center(child: AspectRatio(aspectRatio: 1.0, child: Painter(_controller))),
+      body: Center(
+          child: AspectRatio(aspectRatio: 1.0, child: Painter(_controller))),
     );
   }
 
@@ -94,7 +107,8 @@ class _PainterCanvasState extends State<PainterCanvas> {
     setState(() {
       _finished = true;
     });
-    Navigator.of(context).push(MaterialPageRoute(builder: (BuildContext context) {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (BuildContext context) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('View your image'),
@@ -103,7 +117,8 @@ class _PainterCanvasState extends State<PainterCanvas> {
             alignment: Alignment.center,
             child: FutureBuilder<Uint8List>(
               future: picture.toPNG(),
-              builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
+              builder:
+                  (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
                 switch (snapshot.connectionState) {
                   case ConnectionState.done:
                     if (snapshot.hasError) {
@@ -117,7 +132,8 @@ class _PainterCanvasState extends State<PainterCanvas> {
                   default:
                     return const FractionallySizedBox(
                       widthFactor: 0.1,
-                      child: AspectRatio(aspectRatio: 1.0, child: CircularProgressIndicator()),
+                      child: AspectRatio(
+                          aspectRatio: 1.0, child: CircularProgressIndicator()),
                       alignment: Alignment.center,
                     );
                 }
@@ -146,12 +162,18 @@ class _PainterCanvasState extends State<PainterCanvas> {
     //Request permissions if not already granted
     if (!(await Permission.storage.status.isGranted)) {
       await Permission.storage.request();
-    }  
+    }
     Uint8List imageBytes = await picture.toPNG();
 
     // the main problem was here. the save image
     // required an Uint8list object
     await ImageGallerySaver.saveImage(imageBytes);
+
+    ApiWidget.of(context).sendUserPaint(userToken, imageBytes).then((response) {
+      if (response != null) {
+        ApiWidget.of(context).showMySnackBar("Image Saved Successfully");
+      }
+    });
   }
 }
 
@@ -165,7 +187,8 @@ class DrawBar extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
-        Flexible(child: StatefulBuilder(builder: (BuildContext context, StateSetter setState) {
+        Flexible(child: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
           return Slider(
             value: _controller.thickness,
             onChanged: (double value) => setState(() {
@@ -181,7 +204,8 @@ class DrawBar extends StatelessWidget {
               quarterTurns: _controller.eraseMode ? 2 : 0,
               child: IconButton(
                   icon: const Icon(Icons.create),
-                  tooltip: (_controller.eraseMode ? 'Disable' : 'Enable') + ' eraser',
+                  tooltip: (_controller.eraseMode ? 'Disable' : 'Enable') +
+                      ' eraser',
                   onPressed: () {
                     setState(() {
                       _controller.eraseMode = !_controller.eraseMode;
@@ -199,7 +223,8 @@ class ColorPickerButton extends StatefulWidget {
   final PainterController _controller;
   final bool _background;
 
-  const ColorPickerButton(this._controller, this._background, {Key? key}) : super(key: key);
+  const ColorPickerButton(this._controller, this._background, {Key? key})
+      : super(key: key);
 
   @override
   _ColorPickerButtonState createState() => _ColorPickerButtonState();
@@ -208,7 +233,12 @@ class ColorPickerButton extends StatefulWidget {
 class _ColorPickerButtonState extends State<ColorPickerButton> {
   @override
   Widget build(BuildContext context) {
-    return IconButton(icon: Icon(_iconData, color: _color), tooltip: widget._background ? 'Change background color' : 'Change draw color', onPressed: _pickColor);
+    return IconButton(
+        icon: Icon(_iconData, color: _color),
+        tooltip: widget._background
+            ? 'Change background color'
+            : 'Change draw color',
+        onPressed: _pickColor);
   }
 
   void _pickColor() {
@@ -235,9 +265,12 @@ class _ColorPickerButtonState extends State<ColorPickerButton> {
     });
   }
 
-  Color get _color => widget._background ? widget._controller.backgroundColor : widget._controller.drawColor;
+  Color get _color => widget._background
+      ? widget._controller.backgroundColor
+      : widget._controller.drawColor;
 
-  IconData get _iconData => widget._background ? Icons.format_color_fill : Icons.brush;
+  IconData get _iconData =>
+      widget._background ? Icons.format_color_fill : Icons.brush;
 
   set _color(Color color) {
     if (widget._background) {
